@@ -1,37 +1,45 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
+import { COLORS } from '../src/constants/colors';
 
-export default function Layout() {
+export default function RootLayout() {
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       <StatusBar style="dark" />
       <Stack
         screenOptions={{
           headerStyle: {
-            backgroundColor: '#F5F7FA', // Arkaplan rengimizle uyumlu
+            backgroundColor: COLORS.background,
           },
-          headerShadowVisible: false, // Çizgi/gölge kaldırıldı
-          headerTintColor: '#111827', // Metin rengi
+          headerShadowVisible: false, // Çizgiyi kaldırır, ferah görünür
+          headerTintColor: COLORS.textMain,
           headerTitleStyle: {
-            fontWeight: '700',
+            fontWeight: '800',
+            fontSize: 18,
           },
           contentStyle: {
-            backgroundColor: '#F5F7FA',
-          }
+            backgroundColor: COLORS.background,
+          },
+          animation: 'slide_from_right', // iOS tarzı yumuşak geçiş
         }}
       >
+        {/* Ana Sayfa: Header'ı gizliyoruz çünkü kendi özel başlığımızı yaptık */}
         <Stack.Screen 
           name="index" 
           options={{ 
-            headerShown: false // Ana ekranda header'ı gizle, kendi header'ımızı yaptık
+            headerShown: false, 
+            title: 'Ana Sayfa' 
           }} 
         />
+        
+        {/* Detay Sayfası: Geri butonu otomatik gelir */}
         <Stack.Screen 
           name="detail" 
           options={{ 
-            title: 'Sinyal Detayı',
-            headerBackTitle: 'Geri', // iOS için
+            title: 'Sinyal Analizi',
+            headerBackTitle: 'Geri',
+            headerTransparent: false,
           }} 
         />
       </Stack>

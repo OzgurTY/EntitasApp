@@ -113,21 +113,12 @@ export default function HomeScreen() {
             <Text style={styles.headerSubtitle}>Canlı Model Sinyalleri</Text>
           </View>
           
-          <View style={styles.actionsContainer}>
-            <TouchableOpacity 
-              style={styles.iconButton}
-              onPress={() => router.push('/models')}
-            >
-              <Ionicons name="stats-chart-outline" size={24} color={COLORS.textMain} />
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.iconButton}
-              onPress={() => router.push('/login')}
-            >
-              <Ionicons name="person-circle-outline" size={32} color={COLORS.textMain} />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity 
+            style={styles.profileButton}
+            onPress={() => router.push('/login')}
+          >
+            <Ionicons name="person-circle-outline" size={32} color={COLORS.textMain} />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -190,14 +181,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 10,
-  },
-  actionsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  iconButton: {
-    padding: 4,
   },
   headerTitle: {
     fontSize: 28,

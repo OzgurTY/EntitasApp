@@ -5,12 +5,16 @@ import {
   TextInput, 
   TouchableOpacity, 
   StyleSheet, 
-  SafeAreaView, 
   KeyboardAvoidingView, 
   Platform,
-  StatusBar
+  StatusBar,
+  ActivityIndicator,
+  Alert
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context'; // DÜZELTME
 import { useRouter } from 'expo-router';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../config/firebaseConfig';
 import { COLORS } from '../constants/colors';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -18,9 +22,38 @@ export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
 
-  const handleLogin = () => {
-    console.log("Giriş:", email);
+  const handleAuth = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter your email and password.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (isRegistering) {
+        await createUserWithEmailAndPassword(auth, email, password);
+        Alert.alert('Success', 'Account created successfully!', [
+          { text: 'OK', onPress: () => router.replace('/') }
+        ]);
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+        router.replace('/'); 
+      }
+    } catch (error) {
+      let errorMessage = 'An error occurred.';
+      if (error.code === 'auth/invalid-email') errorMessage = 'Invalid email address.';
+      if (error.code === 'auth/user-not-found') errorMessage = 'User not found.';
+      if (error.code === 'auth/wrong-password') errorMessage = 'Incorrect password.';
+      if (error.code === 'auth/email-already-in-use') errorMessage = 'Email already in use.';
+      if (error.code === 'auth/weak-password') errorMessage = 'Password should be at least 6 characters.';
+      
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -38,16 +71,18 @@ export default function LoginScreen() {
         style={styles.content}
       >
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>Hoş Geldiniz</Text>
-          <Text style={styles.subtitle}>Devam etmek için giriş yapın.</Text>
+          <Text style={styles.title}>{isRegistering ? 'Create Account' : 'Welcome Back'}</Text>
+          <Text style={styles.subtitle}>
+            {isRegistering ? 'Join us to get started.' : 'Sign in to continue.'}
+          </Text>
         </View>
 
         <View style={styles.form}>
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>E-POSTA</Text>
+            <Text style={styles.label}>EMAIL</Text>
             <TextInput
               style={styles.input}
-              placeholder="ornek@email.com"
+              placeholder="example@email.com"
               placeholderTextColor={COLORS.textLight}
               value={email}
               onChangeText={setEmail}
@@ -57,7 +92,7 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>ŞİFRE</Text>
+            <Text style={styles.label}>PASSWORD</Text>
             <TextInput
               style={styles.input}
               placeholder="••••••••"
@@ -68,14 +103,29 @@ export default function LoginScreen() {
             />
           </View>
 
-          <TouchableOpacity style={styles.loginButton} activeOpacity={0.8} onPress={handleLogin}>
-            <Text style={styles.loginButtonText}>Giriş Yap</Text>
+          <TouchableOpacity 
+            style={styles.loginButton} 
+            activeOpacity={0.8} 
+            onPress={handleAuth}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.loginButtonText}>
+                {isRegistering ? 'Sign Up' : 'Sign In'}
+              </Text>
+            )}
           </TouchableOpacity>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Hesabın yok mu? </Text>
-            <TouchableOpacity>
-              <Text style={styles.linkText}>Kayıt Ol</Text>
+            <Text style={styles.footerText}>
+              {isRegistering ? 'Already have an account? ' : 'Don\'t have an account? '}
+            </Text>
+            <TouchableOpacity onPress={() => setIsRegistering(!isRegistering)}>
+              <Text style={styles.linkText}>
+                {isRegistering ? 'Sign In' : 'Sign Up'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>

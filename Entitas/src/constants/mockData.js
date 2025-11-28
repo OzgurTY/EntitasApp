@@ -1,6 +1,6 @@
 // Rastgele veri üretimi için yardımcılar
-const SYMBOLS = ['QQQ', 'GLD', 'SLV', 'SPY', 'XLF', 'XLU', 'NVDA', 'AAPL', 'TSLA', 'MSFT', 'AMZN', 'GOOGL', 'META'];
-const MODELS = ['umamba', 'convmixer-tf', 'transformer-v2', 'lstm-quant'];
+export const SYMBOLS = ['QQQ', 'GLD', 'SLV', 'SPY', 'XLF', 'XLU', 'NVDA', 'AAPL', 'TSLA', 'MSFT', 'AMZN', 'GOOGL', 'META'];
+export const MODELS = ['umamba', 'convmixer-tf', 'transformer-v2', 'lstm-quant'];
 const SIGNALS_TYPES = ['BUY', 'SELL', 'HOLD'];
 const ASSET_TYPES = ['ETF', 'Commodity', 'Stock'];
 

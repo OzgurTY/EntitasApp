@@ -1,31 +1,24 @@
 import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../config/firebaseConfig';
 
-export const fetchSignals = async (filterType = 'Tümü') => {
+export const fetchSignals = async (filterType = 'All') => {
   try {
     const signalsRef = collection(db, 'signals');
-    // Not: Eğer 'ts' alanı karmaşık bir obje ise ($date gibi), Firestore sıralamasında (orderBy)
-    // sorun yaşayabilirsin. Şimdilik sıralamayı client-side (uygulama içinde) yapacağız.
-    // Bu yüzden sorgudan 'orderBy'ı geçici olarak kaldırıyorum.
-    const q = query(signalsRef, limit(50));
+    // Sıralamayı ve limitlemeyi client-side yapıyoruz şimdilik
+    const q = query(signalsRef, limit(100));
     
     const snapshot = await getDocs(q);
     
     let data = snapshot.docs.map(doc => {
       const rawData = doc.data();
-      
-      // TARİH NORMALİZASYONU (Önemli Kısım)
-      let normalizedDate = new Date(); // Varsayılan: Şu an
+      let normalizedDate = new Date();
       
       if (rawData.ts) {
         if (rawData.ts?.toDate) {
-          // 1. Durum: Firestore Timestamp (En iyisi)
           normalizedDate = rawData.ts.toDate();
         } else if (typeof rawData.ts === 'string') {
-          // 2. Durum: ISO String (Bizim seeder)
           normalizedDate = new Date(rawData.ts);
         } else if (rawData.ts?.$date) {
-          // 3. Durum: Senin attığın format (MongoDB stili)
           normalizedDate = new Date(rawData.ts.$date);
         }
       }
@@ -33,26 +26,30 @@ export const fetchSignals = async (filterType = 'Tümü') => {
       return {
         _id: doc.id,
         ...rawData,
-        ts: normalizedDate.toISOString() // Arayüze her zaman standart string gönderiyoruz
+        ts: normalizedDate.toISOString()
       };
     });
 
-    // Client-side Sıralama (Yeniden eskiye)
     data.sort((a, b) => new Date(b.ts) - new Date(a.ts));
 
-    // Client-side Filtreleme
-    if (filterType !== 'Tümü') {
-      const signalMap = { 'Al': 'BUY', 'Sat': 'SELL', 'Tut': 'HOLD' };
-      const targetSignal = signalMap[filterType];
+    // FILTERING LOGIC (UPDATED FOR ENGLISH)
+    if (filterType !== 'All') {
+      // Eğer model ismine göre filtreleme yapılıyorsa (filterType model adıdır)
+      // Ancak "Favorites" filtresi HomeScreen'de ayrıca işleniyor.
+      // Sinyal tipine göre filtreleme yapacaksak (Buy/Sell/Hold) dönüşüm gerekebilir.
+      // Ancak şimdilik HomeScreen'de sadece Model filtresi kullanıyoruz.
+      // Eğer "All" değilse, bunun bir Model ismi olduğunu varsayalım.
       
-      if (targetSignal) {
-        data = data.filter(item => item.signal === targetSignal);
-      }
+      // Sinyal filtreleme için ekstra kontrol (Opsiyonel, eğer ileride 'Buy' filtresi eklersek)
+      // const signalMap = { 'Buy': 'BUY', 'Sell': 'SELL', 'Hold': 'HOLD' };
+      
+      // Model Filtrelemesi:
+      data = data.filter(item => item.modelName === filterType);
     }
 
     return data;
   } catch (error) {
-    console.error("Veri çekme hatası:", error);
+    console.error("Fetch Error:", error);
     return [];
   }
 };

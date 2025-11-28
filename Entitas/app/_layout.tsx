@@ -1,24 +1,40 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import { View } from 'react-native';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
-
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
+export default function Layout() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+    <View style={{ flex: 1 }}>
+      <StatusBar style="dark" />
+      <Stack
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: '#F5F7FA', // Arkaplan rengimizle uyumlu
+          },
+          headerShadowVisible: false, // Çizgi/gölge kaldırıldı
+          headerTintColor: '#111827', // Metin rengi
+          headerTitleStyle: {
+            fontWeight: '700',
+          },
+          contentStyle: {
+            backgroundColor: '#F5F7FA',
+          }
+        }}
+      >
+        <Stack.Screen 
+          name="index" 
+          options={{ 
+            headerShown: false // Ana ekranda header'ı gizle, kendi header'ımızı yaptık
+          }} 
+        />
+        <Stack.Screen 
+          name="detail" 
+          options={{ 
+            title: 'Sinyal Detayı',
+            headerBackTitle: 'Geri', // iOS için
+          }} 
+        />
       </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    </View>
   );
 }

@@ -1,18 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, StatusBar, ActivityIndicator, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context'; // DÜZELTME
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { COLORS } from '../constants/colors';
-import { fetchSignals } from '../services/signalService';
-import { MODEL_PERFORMANCE, ASSET_NAMES, MODELS } from '../constants/mockData';
+import { fetchSignals, fetchModelStats } from '../services/signalService';
+import { ASSET_NAMES } from '../constants/mockData'; // MODELS'i artık buradan almıyoruz
 import { formatCurrency, formatPercentage, formatDate } from '../utils/formatters';
 import { Ionicons } from '@expo/vector-icons';
 import { uploadMockData } from '../utils/seeder';
 import { useAuth } from '../context/AuthContext';
 import { getFavorites } from '../services/userService';
-
-// FİLTRELER İNGİLİZCE
-const MODEL_FILTERS = ['All', 'Favorites', ...MODELS];
 
 const SignalBadge = ({ type }) => {
   let bg = COLORS.secondary;
@@ -26,14 +22,18 @@ const SignalBadge = ({ type }) => {
   );
 };
 
-const SignalCard = ({ item }) => {
+const SignalCard = ({ item, stats }) => {
   const router = useRouter();
   const assetFullName = ASSET_NAMES[item.symbol] || item.assetType || item.symbol;
+  const modelStats = stats || {};
 
   const handlePress = () => {
     router.push({
       pathname: '/detail',
-      params: { itemData: JSON.stringify(item) } 
+      params: { 
+        itemData: JSON.stringify(item),
+        statsData: JSON.stringify(modelStats) 
+      } 
     });
   };
 
@@ -61,8 +61,10 @@ const SignalCard = ({ item }) => {
           <Text style={[styles.statValue, {color: COLORS.primary}]}>{item.modelName}</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statLabel}>CONFIDENCE</Text>
-          <Text style={styles.statValue}>{item.confidence ? formatPercentage(item.confidence) : '-'}</Text>
+          <Text style={styles.statLabel}>ACCURACY</Text>
+          <Text style={styles.statValue}>
+            {modelStats.accuracy ? formatPercentage(modelStats.accuracy) : '-'}
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -73,28 +75,38 @@ export default function HomeScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const [signals, setSignals] = useState([]);
+  const [allStats, setAllStats] = useState({}); 
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('All');
+  
+  // DİNAMİK FİLTRELER İÇİN STATE
+  const [filters, setFilters] = useState(['All', 'Favorites']); 
 
   const loadData = async () => {
     setLoading(true);
     
-    // Servise gönderilecek filtre ('All' veya model ismi)
+    // 1. Model İstatistiklerini Çek (Bu bize aktif modelleri verir)
+    const stats = await fetchModelStats();
+    setAllStats(stats);
+
+    // Firebase'den gelen model isimlerini filtre listesine ekle
+    const availableModels = Object.keys(stats);
+    if (availableModels.length > 0) {
+      setFilters(['All', 'Favorites', ...availableModels]);
+    }
+
+    // 2. Sinyalleri Çek
     const filterToSend = activeFilter === 'Favorites' ? 'All' : activeFilter;
     let data = await fetchSignals(filterToSend);
 
+    // 3. Favori Filtrelemesi
     if (activeFilter === 'Favorites') {
       if (user) {
         try {
           const favs = await getFavorites(user.uid);
           data = data.filter(item => favs.includes(item.symbol));
-        } catch (e) {
-          console.error("Fav Error:", e);
-          data = [];
-        }
-      } else {
-        data = [];
-      }
+        } catch (e) { data = []; }
+      } else { data = []; }
     }
 
     setSignals(data);
@@ -107,22 +119,17 @@ export default function HomeScreen() {
 
   const handleProfilePress = () => {
     if (user) {
-      Alert.alert(
-        "Sign Out",
-        `Do you want to sign out from ${user.email}?`,
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Sign Out", onPress: () => logout(), style: "destructive" }
-        ]
-      );
-    } else {
-      router.push('/login');
-    }
+      Alert.alert("Sign Out", `Sign out from ${user.email}?`, [
+        { text: "Cancel", style: "cancel" },
+        { text: "Sign Out", onPress: () => logout(), style: "destructive" }
+      ]);
+    } else { router.push('/login'); }
   };
 
   const renderFilterItem = ({ item }) => {
     const isActive = item === activeFilter;
     const isFavTab = item === 'Favorites';
+    
     return (
       <TouchableOpacity 
         style={[
@@ -144,7 +151,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
       
       <View style={styles.header}>
@@ -190,7 +197,7 @@ export default function HomeScreen() {
 
       <View style={styles.filterContainer}>
         <FlatList
-          data={MODEL_FILTERS}
+          data={filters} // ARTIK STATE'DEN GELİYOR
           horizontal
           showsHorizontalScrollIndicator={false}
           keyExtractor={item => item}
@@ -207,7 +214,7 @@ export default function HomeScreen() {
         <FlatList
           data={signals}
           keyExtractor={(item) => item._id || Math.random().toString()}
-          renderItem={({ item }) => <SignalCard item={item} />}
+          renderItem={({ item }) => <SignalCard item={item} stats={allStats[item.modelName]} />}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           refreshing={loading}
@@ -227,7 +234,6 @@ export default function HomeScreen() {
   );
 }
 
-// Styles aynı kalabilir, sadece content değişiklikleri yapıldı.
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },

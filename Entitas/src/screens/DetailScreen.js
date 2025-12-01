@@ -20,11 +20,25 @@ import { useAuth } from '../context/AuthContext';
 import { getFavorites, toggleFavorite } from '../services/userService';
 
 const { width } = Dimensions.get('window');
-// ZAMAN DİLİMLERİ İNGİLİZCE
-const TIMEFRAMES = ['1D', '1W', '1M', '3M', '1Y', 'ALL'];
+const TIMEFRAMES = ['1G', '1H', '1A', '3A', '1Y', 'TÜM'];
 
+// Yardımcı Fonksiyon: Sinyal Rengini Belirle
+const getSignalColor = (type) => {
+  if (type === 'BUY') return COLORS.success;
+  if (type === 'SELL') return COLORS.danger;
+  return '#F59E0B'; // HOLD için Turuncu
+};
+
+// Yardımcı Fonksiyon: Sinyal Metnini Belirle
+const getSignalText = (type) => {
+  if (type === 'BUY') return 'STRONG BUY';
+  if (type === 'SELL') return 'STRONG SELL';
+  return 'NEUTRAL / HOLD';
+};
+
+// --- ÖZEL GRAFİK İŞARETÇİLERİ ---
 const SignalMarker = ({ type }) => {
-  const color = type === 'BUY' ? COLORS.success : COLORS.danger;
+  const color = getSignalColor(type);
   return (
     <View style={{
       height: 14, width: 14, borderRadius: 7, backgroundColor: '#fff',
@@ -35,7 +49,7 @@ const SignalMarker = ({ type }) => {
 };
 
 const CurrentPriceLabel = ({ value, type }) => {
-  const color = type === 'BUY' ? COLORS.success : COLORS.danger;
+  const color = getSignalColor(type);
   return (
     <View style={{
       backgroundColor: color, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
@@ -47,6 +61,7 @@ const CurrentPriceLabel = ({ value, type }) => {
   );
 };
 
+// --- GELİŞMİŞ VERİ SİMÜLASYONU ---
 const generateRealisticData = (basePrice, points = 40, volatility = 2, currentSignal) => {
   const data = [];
   let priceRunner = Number(basePrice) || 100;
@@ -60,7 +75,12 @@ const generateRealisticData = (basePrice, points = 40, volatility = 2, currentSi
       dataPointLabelComponent = () => <CurrentPriceLabel value={basePrice} type={currentSignal} />;
     } 
     else if (Math.random() > 0.92) { 
-      const randomType = Math.random() > 0.5 ? 'BUY' : 'SELL';
+      // Rastgele geçmiş sinyaller
+      const randomVal = Math.random();
+      let randomType = 'HOLD';
+      if (randomVal > 0.66) randomType = 'BUY';
+      else if (randomVal > 0.33) randomType = 'SELL';
+      
       customPoint = () => <SignalMarker type={randomType} />;
     }
 
@@ -94,20 +114,23 @@ const StatBox = ({ label, value, color = COLORS.textMain, icon }) => (
 export default function DetailScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { itemData } = useLocalSearchParams();
-  const item = itemData ? JSON.parse(itemData) : {};
+  const { itemData, statsData } = useLocalSearchParams();
   
-  const modelStats = MODEL_PERFORMANCE[item.modelName] || {};
+  const item = itemData ? JSON.parse(itemData) : {};
+  const modelStats = statsData ? JSON.parse(statsData) : {};
+  
   const assetName = ASSET_NAMES[item.symbol] || item.symbol;
   
-  const [activeTimeframe, setActiveTimeframe] = useState('1M'); // Varsayılan 1 Month
+  const [activeTimeframe, setActiveTimeframe] = useState('1M');
   const [chartData, setChartData] = useState([]);
   const [isFavorite, setIsFavorite] = useState(false);
   
   const currentPrice = item.price || 0; 
 
-  const isBuy = item.signal === 'BUY';
-  const signalColor = isBuy ? COLORS.success : COLORS.danger;
+  // Sinyal Rengi ve İkonu Belirleme
+  const signalColor = getSignalColor(item.signal);
+  const signalIconName = item.signal === 'BUY' ? "caret-up" : (item.signal === 'SELL' ? "caret-down" : "remove-outline");
+  const displaySignalText = getSignalText(item.signal);
 
   useEffect(() => {
     if (user && item.symbol) {
@@ -165,14 +188,10 @@ export default function DetailScreen() {
         
         <View style={styles.priceSection}>
           <Text style={styles.bigPrice}>{formatCurrency(currentPrice)}</Text>
-          <View style={{flexDirection:'row', gap: 10, alignItems: 'center'}}>
-             <Ionicons 
-                name={isBuy ? "caret-up" : "caret-down"} 
-                size={20} 
-                color={signalColor} 
-             />
+          <View style={{flexDirection:'row', gap: 8, alignItems: 'center', marginTop: 4}}>
+             <Ionicons name={signalIconName} size={20} color={signalColor} />
              <Text style={[styles.signalText, { color: signalColor }]}>
-                {item.signal === 'BUY' ? 'STRONG BUY' : 'STRONG SELL'}
+                {displaySignalText}
              </Text>
           </View>
         </View>
@@ -207,7 +226,7 @@ export default function DetailScreen() {
             />
           ) : (
             <View style={{height: 250, justifyContent: 'center', alignItems: 'center'}}>
-              <Text style={{color: COLORS.secondary}}>Loading Chart...</Text>
+              <Text style={{color: COLORS.secondary}}>Loading Chart Data...</Text>
             </View>
           )}
         </View>
@@ -235,6 +254,7 @@ export default function DetailScreen() {
           </View>
           <View style={[styles.divider, { marginVertical: 15 }]} />
           <View style={styles.statsRow}>
+            {/* İkon ismi düzeltildi */}
             <StatBox label="Accuracy" value={formatPercentage(modelStats.accuracy || 0.75)} icon="locate-outline" />
             <StatBox label="Date" value={item.ts ? item.ts.split('T')[0] : 'Today'} icon="calendar-outline" />
           </View>
@@ -262,165 +282,32 @@ export default function DetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Stiller aynı kalabilir...
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  iconBtn: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: COLORS.textMain,
-  },
-  headerSub: {
-    fontSize: 12,
-    color: COLORS.secondary,
-    fontWeight: '500',
-  },
-  scrollContent: {
-    paddingBottom: 100,
-  },
-  priceSection: {
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  bigPrice: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: COLORS.textMain,
-    letterSpacing: -0.5,
-  },
-  signalText: {
-    fontWeight: '700',
-    fontSize: 14,
-    marginTop: 4,
-  },
-  chartContainer: {
-    height: 250,
-    width: '100%',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  timeframeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 24,
-  },
-  tfItem: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
-  },
-  tfItemActive: {
-    backgroundColor: COLORS.textMain,
-  },
-  tfText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.secondary,
-  },
-  tfTextActive: {
-    color: '#fff',
-  },
-  statsCard: {
-    backgroundColor: '#F9FAFB',
-    marginHorizontal: 20,
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  cardTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 15,
-    color: COLORS.textMain,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  statBox: {
-    flex: 1,
-  },
-  statHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 6,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: COLORS.secondary,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-  },
-  statValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.textMain,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-  },
-  aiBox: {
-    margin: 20,
-    padding: 16,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.primary,
-    flexDirection: 'row',
-    gap: 12,
-  },
-  aiText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#1E3A8A',
-    lineHeight: 20,
-  },
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#fff',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    flexDirection: 'row',
-    gap: 15,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-  },
-  actionBtn: {
-    flex: 1,
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '800',
-  },
+  container: { flex: 1, backgroundColor: '#fff' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  iconBtn: { padding: 8 },
+  headerTitle: { fontSize: 18, fontWeight: '800', color: COLORS.textMain },
+  headerSub: { fontSize: 12, color: COLORS.secondary, fontWeight: '500' },
+  scrollContent: { paddingBottom: 100 },
+  priceSection: { alignItems: 'center', marginTop: 20, marginBottom: 10 },
+  bigPrice: { fontSize: 36, fontWeight: '800', color: COLORS.textMain, letterSpacing: -0.5 },
+  signalText: { fontWeight: '700', fontSize: 14 },
+  chartContainer: { height: 250, width: '100%', justifyContent: 'center', marginBottom: 10 },
+  timeframeRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 24 },
+  tfItem: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#F3F4F6' },
+  tfItemActive: { backgroundColor: COLORS.textMain },
+  tfText: { fontSize: 12, fontWeight: '600', color: COLORS.secondary },
+  tfTextActive: { color: '#fff' },
+  statsCard: { backgroundColor: '#F9FAFB', marginHorizontal: 20, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: '#E5E7EB' },
+  cardTitle: { fontSize: 14, fontWeight: '700', marginBottom: 15, color: COLORS.textMain, textTransform: 'uppercase', letterSpacing: 0.5 },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  statBox: { flex: 1 },
+  statHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  statLabel: { fontSize: 11, color: COLORS.secondary, fontWeight: '600', textTransform: 'uppercase' },
+  statValue: { fontSize: 16, fontWeight: '700', color: COLORS.textMain },
+  divider: { height: 1, backgroundColor: '#E5E7EB' },
+  aiBox: { margin: 20, padding: 16, backgroundColor: '#EFF6FF', borderRadius: 12, borderLeftWidth: 4, borderLeftColor: COLORS.primary, flexDirection: 'row', gap: 12 },
+  aiText: { flex: 1, fontSize: 13, color: '#1E3A8A', lineHeight: 20 },
+  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', paddingHorizontal: 20, paddingVertical: 15, flexDirection: 'row', gap: 15, borderTopWidth: 1, borderTopColor: '#E5E7EB' },
+  actionBtn: { flex: 1, paddingVertical: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  actionText: { color: '#fff', fontSize: 16, fontWeight: '800' },
 });

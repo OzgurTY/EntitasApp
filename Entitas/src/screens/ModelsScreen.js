@@ -1,9 +1,9 @@
-import React from 'react';
-import { View, Text, FlatList, StyleSheet, StatusBar, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context'; // DÜZELTME: Modern Safe Area
+import React, { useEffect, useState } from 'react';
+import { View, Text, FlatList, StyleSheet, StatusBar, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { COLORS } from '../constants/colors';
-import { MODEL_PERFORMANCE } from '../constants/mockData';
+import { fetchModelStats } from '../services/signalService'; // Firebase Servisi
 import { formatPercentage } from '../utils/formatters';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -15,7 +15,7 @@ const ModelCard = ({ item }) => {
           <Ionicons name="hardware-chip-outline" size={24} color={COLORS.primary} />
         </View>
         <View style={styles.headerTextContainer}>
-          <Text style={styles.modelName}>{item.model_name.toUpperCase()}</Text>
+          <Text style={styles.modelName}>{item.model_name?.toUpperCase()}</Text>
           <Text style={styles.subText}>AI Algorithm</Text>
         </View>
         <View style={[styles.badge, {backgroundColor: '#DCFCE7'}]}>
@@ -28,7 +28,10 @@ const ModelCard = ({ item }) => {
       <View style={styles.statsContainer}>
         <View style={styles.statBox}>
           <Text style={styles.statLabel}>Sharpe</Text>
-          <Text style={styles.statValue}>{item.sharpe_ratio}</Text>
+          {/* İSTEĞİN ÜZERİNE 5 BASAMAKLI FORMATLAMA */}
+          <Text style={styles.statValue}>
+            {item.sharpe_ratio ? Number(item.sharpe_ratio).toFixed(5) : '-'}
+          </Text>
         </View>
         <View style={[styles.statBox, styles.statBorder]}>
           <Text style={styles.statLabel}>Accuracy</Text>
@@ -47,7 +50,21 @@ const ModelCard = ({ item }) => {
 
 export default function ModelsScreen() {
   const router = useRouter();
-  const models = Object.values(MODEL_PERFORMANCE);
+  const [models, setModels] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadModels = async () => {
+      // Mock data yerine Firebase'den çekiyoruz
+      const stats = await fetchModelStats();
+      // Gelen objeyi diziye (array) çeviriyoruz
+      const modelsArray = Object.values(stats);
+      setModels(modelsArray);
+      setLoading(false);
+    };
+    
+    loadModels();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -61,13 +78,24 @@ export default function ModelsScreen() {
         <View style={{ width: 24 }} /> 
       </View>
 
-      <FlatList
-        data={models}
-        keyExtractor={(item) => item.model_name}
-        renderItem={({ item }) => <ModelCard item={item} />}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={models}
+          keyExtractor={(item, index) => item.model_name || index.toString()}
+          renderItem={({ item }) => <ModelCard item={item} />}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={{color: COLORS.secondary}}>No models found.</Text>
+            </View>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -76,6 +104,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    marginTop: 50,
   },
   header: {
     flexDirection: 'row',

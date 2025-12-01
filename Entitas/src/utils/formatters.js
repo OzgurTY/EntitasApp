@@ -13,3 +13,9 @@ export const formatDate = (isoString) => {
   const date = new Date(isoString);
   return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
 };
+
+// Yeni eklenen fonksiyon: Ondalık basamak sayısını sınırlar
+export const formatDecimal = (value, decimals = 5) => {
+  if (value === undefined || value === null) return '-';
+  return Number(value).toFixed(decimals);
+};

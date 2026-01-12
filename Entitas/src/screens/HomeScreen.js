@@ -184,7 +184,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <TouchableOpacity 
+        {/* <TouchableOpacity 
           style={styles.devButton}
           onPress={async () => {
             const success = await uploadMockData();
@@ -192,7 +192,7 @@ export default function HomeScreen() {
           }}
         >
           <Text style={styles.devButtonText}>RESET DATABASE (DEV) 🔄</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
 
       <View style={styles.filterContainer}>
